@@ -1,0 +1,26 @@
+# src/agent.py
+"""エージェント定義: モデル・システムプロンプト・3ツールを組み立てる。"""
+
+from strands import Agent
+from strands.models import BedrockModel
+from strands_tools import python_repl, retrieve
+
+from src.tools.temperature import get_temperature
+
+MODEL_ID = "jp.anthropic.claude-sonnet-4-5-20250929-v1:0"
+
+SYSTEM_PROMPT = (
+    "あなたは計算・気温確認・マクドナルドのメニュー成分検索ができるアシスタントです。"
+    "計算にはpython_replを、気温にはget_temperatureを、"
+    "メニューの栄養成分に関する質問にはretrieveを使ってください。"
+)
+
+
+def build_agent() -> Agent:
+    """3ツールを登録したエージェントを組み立てて返す。"""
+    model = BedrockModel(model_id=MODEL_ID)
+    return Agent(
+        model=model,
+        tools=[python_repl, get_temperature, retrieve],
+        system_prompt=SYSTEM_PROMPT,
+    )
