@@ -17,7 +17,9 @@ from src.telemetry import session_scope  # noqa: E402
 from evaluation.test_cases import TEST_CASES  # noqa: E402
 
 REGION = os.environ.get("AWS_REGION", "ap-northeast-1")
-LOG_GROUP = "aws/spans"
+SPANS_LOG_GROUP = "aws/spans"
+# scripts/otel_env.shでOTELログ(input/output messagesを含むイベント)の送信先として設定したロググループ
+EVENTS_LOG_GROUP = "/otel/agentcore-evaluations-demo"
 
 EVALUATORS = [
     "Builtin.Helpfulness",
@@ -36,8 +38,26 @@ EVALUATORS = [
 ]
 
 
-def query_session_span_logs(logs_client, session_id: str) -> list[dict]:
-    """CloudWatch Logs InsightsでLOG_GROUPからsession.idに紐づくスパンを取得する。"""
+def wait_for_span_logs(logs_client, session_id: str, timeout: int = 180, interval: int = 20) -> list[dict]:
+    """スパン(aws/spans)とログイベント(EVENTS_LOG_GROUP)の両方がCloudWatchに反映され、
+    かつ件数が前回ポーリング時から変化しなくなる(＝取り込みが落ち着いた)まで
+    (最大timeout秒)ポーリングし、結合したリストを返す。"""
+    deadline = time.monotonic() + timeout
+    previous_count = None
+    while time.monotonic() < deadline:
+        span_logs = query_log_group(logs_client, SPANS_LOG_GROUP, session_id)
+        event_logs = query_log_group(logs_client, EVENTS_LOG_GROUP, session_id)
+        current_count = len(span_logs) + len(event_logs)
+        if span_logs and event_logs and current_count == previous_count:
+            return span_logs + event_logs
+        previous_count = current_count if (span_logs and event_logs) else None
+        print(f"  スパン/ログイベント未反映または取り込み中、{interval}秒待機します...")
+        time.sleep(interval)
+    return []
+
+
+def query_log_group(logs_client, log_group: str, session_id: str) -> list[dict]:
+    """CloudWatch Logs Insightsでlog_groupからsession.idに紐づくレコードを取得する。"""
     start_time = datetime.now(timezone.utc) - timedelta(minutes=30)
     end_time = datetime.now(timezone.utc)
     query = (
@@ -48,7 +68,7 @@ def query_session_span_logs(logs_client, session_id: str) -> list[dict]:
     )
 
     query_id = logs_client.start_query(
-        logGroupName=LOG_GROUP,
+        logGroupName=log_group,
         startTime=int(start_time.timestamp()),
         endTime=int(end_time.timestamp()),
         queryString=query,
@@ -69,18 +89,6 @@ def query_session_span_logs(logs_client, session_id: str) -> list[dict]:
             if field["field"] == "@message" and field["value"].strip().startswith("{"):
                 messages.append(json.loads(field["value"]))
     return messages
-
-
-def wait_for_span_logs(logs_client, session_id: str, timeout: int = 180, interval: int = 20) -> list[dict]:
-    """スパンがCloudWatchに反映されるまで(最大timeout秒)ポーリングする。"""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        spans = query_session_span_logs(logs_client, session_id)
-        if spans:
-            return spans
-        print(f"  スパン未反映、{interval}秒待機します...")
-        time.sleep(interval)
-    return []
 
 
 def run_case(agentcore_client, logs_client, query: str) -> None:

@@ -13,5 +13,13 @@ export KNOWLEDGE_BASE_ID=$(terraform -chdir="$(dirname "${BASH_SOURCE[0]}")/../t
 export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="https://xray.${AWS_REGION}.amazonaws.com/v1/traces"
 # session.id baggageをスパン属性へ伝播させるため、Agent Observabilityを有効化
 export AGENT_OBSERVABILITY_ENABLED=true
-# ログOTLPエクスポート(未設定のためエラーになる)は本タスクの対象外なので無効化
-export OTEL_LOGS_EXPORTER=none
+
+# AgentCore Evaluationsがスパンと突き合わせる「ログイベント」(input/output messages)の送信先。
+# aws/spansはスパン本体のみを保持するため、自己管理エージェントでは別途ログ用ロググループを用意する必要がある。
+EVENTS_LOG_GROUP="/otel/agentcore-evaluations-demo"
+EVENTS_LOG_STREAM="agentcore-evaluations-demo"
+aws logs create-log-group --log-group-name "$EVENTS_LOG_GROUP" --region "$AWS_REGION" 2>/dev/null || true
+# OTLPログエクスポーターはログストリームを自動作成しないため、事前に作成しておく
+aws logs create-log-stream --log-group-name "$EVENTS_LOG_GROUP" --log-stream-name "$EVENTS_LOG_STREAM" --region "$AWS_REGION" 2>/dev/null || true
+export OTEL_LOGS_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_LOGS_HEADERS="x-aws-log-group=${EVENTS_LOG_GROUP},x-aws-log-stream=${EVENTS_LOG_STREAM}"
