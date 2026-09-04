@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  lint-and-test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -23,6 +23,3 @@ jobs:
 
       - name: Format check (ruff format)
         run: uv run ruff format --check .
-
-      - name: Test (pytest)
-        run: uv run pytest

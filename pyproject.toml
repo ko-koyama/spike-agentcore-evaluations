@@ -1,6 +1,6 @@
 # プロジェクトのメタ情報
 [project]
-name = "python-template"
+name = "spike-agentcore-evaluations"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
@@ -15,14 +15,12 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pre-commit",
-    "pytest",
     "ruff",
 ]
 
-# pytest
-[tool.pytest.ini_options]
-pythonpath = ["src"]
-
 # ruff
+[tool.ruff]
+extend-exclude = ["docs/"]
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

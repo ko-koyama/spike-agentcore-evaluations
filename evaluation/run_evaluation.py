@@ -6,20 +6,21 @@ import json
 import os
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import boto3
 
 os.environ.setdefault("BYPASS_TOOL_CONSENT", "true")
 
+from evaluation.test_cases import TEST_CASES  # noqa: E402
 from src.agent import build_agent  # noqa: E402
 from src.telemetry import session_scope  # noqa: E402
-from evaluation.test_cases import TEST_CASES  # noqa: E402
 
 REGION = os.environ.get("AWS_REGION", "ap-northeast-1")
 SPANS_LOG_GROUP = "aws/spans"
-# scripts/otel_env.shでOTELログ(input/output messagesを含むイベント)の送信先として設定したロググループ
-EVENTS_LOG_GROUP = "/otel/agentcore-evaluations-demo"
+# scripts/otel_env.shがterraform outputから設定する、ログイベント
+# (input/output messagesを含む)の送信先ロググループ
+EVENTS_LOG_GROUP = os.environ["EVENTS_LOG_GROUP"]
 
 EVALUATORS = [
     "Builtin.Helpfulness",
@@ -38,7 +39,9 @@ EVALUATORS = [
 ]
 
 
-def wait_for_span_logs(logs_client, session_id: str, timeout: int = 180, interval: int = 20) -> list[dict]:
+def wait_for_session_records(
+    logs_client, session_id: str, timeout: int = 180, interval: int = 20
+) -> list[dict]:
     """スパン(aws/spans)とログイベント(EVENTS_LOG_GROUP)の両方がCloudWatchに反映され、
     かつ件数が前回ポーリング時から変化しなくなる(＝取り込みが落ち着いた)まで
     (最大timeout秒)ポーリングし、結合したリストを返す。"""
@@ -58,8 +61,8 @@ def wait_for_span_logs(logs_client, session_id: str, timeout: int = 180, interva
 
 def query_log_group(logs_client, log_group: str, session_id: str) -> list[dict]:
     """CloudWatch Logs Insightsでlog_groupからsession.idに紐づくレコードを取得する。"""
-    start_time = datetime.now(timezone.utc) - timedelta(minutes=30)
-    end_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC) - timedelta(minutes=30)
+    end_time = datetime.now(UTC)
     query = (
         "fields @timestamp, @message"
         " | filter ispresent(attributes.session.id)"
@@ -100,8 +103,8 @@ def run_case(agentcore_client, logs_client, query: str) -> None:
         response = agent(query)
     print(f"応答: {response}")
 
-    span_logs = wait_for_span_logs(logs_client, session_id)
-    if not span_logs:
+    session_records = wait_for_session_records(logs_client, session_id)
+    if not session_records:
         print("スパンが取得できなかったため、このクエリの評価をスキップします")
         return
 
@@ -109,7 +112,7 @@ def run_case(agentcore_client, logs_client, query: str) -> None:
         try:
             result = agentcore_client.evaluate(
                 evaluatorId=evaluator_id,
-                evaluationInput={"sessionSpans": span_logs},
+                evaluationInput={"sessionSpans": session_records},
             )
             for entry in result.get("evaluationResults", []):
                 print(f"  [{evaluator_id}] {entry}")
