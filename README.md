@@ -104,11 +104,11 @@ aws xray update-indexing-rule --name "Default" \
 
 ## エージェントの実行方法
 
-`scripts/otel_env.sh`は、トレース送信先(X-Ray)・ログイベント送信先(自己管理エージェント用のCloudWatch Logsロググループ/ストリーム)など、ADOT計装に必要な環境変数一式を設定する(ロググループ/ストリームが未作成なら作成する)。
+`scripts/otel_env.sh`は、トレース送信先(X-Ray)・ログイベント送信先(自己管理エージェント用のCloudWatch Logsロググループ/ストリーム。ロググループはTerraformで管理、ログストリームは未作成なら作成する)など、ADOT計装に必要な環境変数一式を設定する。
 
 ```bash
 source scripts/otel_env.sh
-opentelemetry-instrument uv run python -m src.main "ビッグマックのカロリーを教えて"
+uv run opentelemetry-instrument python -m src.main "ビッグマックのカロリーを教えて"
 ```
 
 ## 評価の実行方法
@@ -117,7 +117,7 @@ opentelemetry-instrument uv run python -m src.main "ビッグマックのカロ�
 
 ```bash
 source scripts/otel_env.sh
-opentelemetry-instrument uv run python -m evaluation.run_evaluation
+uv run opentelemetry-instrument python -m evaluation.run_evaluation
 ```
 
 正解データ(ground truth)は使用せず、13エバリュエーター × テストクエリ数ぶんの評価結果(スコア・ラベル・説明)が表示される。
