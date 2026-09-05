@@ -3,7 +3,7 @@
 Amazon Bedrock AgentCore Evaluations(オンデマンド評価)の学習用リポジトリ。
 
 - Strands Agents SDKで簡単なAIエージェント(計算・気温確認・Knowledge Base検索の3ツール)を実装
-- ADOT(OpenTelemetry)でエージェントの実行をCloudWatch(X-Ray Transaction Search)にトレースとして送信
+- `strands-agents-evals`(`bedrock-agentcore[strands-agents-evals]`)でエージェントの実行トレースをインメモリで収集
 - AgentCore Evaluationsの組み込みエバリュエーター13種を、正解データ(ground truth)なしでトレースに対して実行
 
 対象リージョンは`ap-northeast-1`(東京)。エージェントはAgentCore Runtimeにはデプロイせず、ローカルのPythonプロセスとして実行する。
@@ -16,7 +16,6 @@ Amazon Bedrock AgentCore Evaluations(オンデマンド評価)の学習用リポ
 │   ├── agent.py           # Strandsエージェント定義(モデル・システムプロンプト・3ツール登録)
 │   ├── tools/
 │   │   └── temperature.py # 都道府県→気温を返すダミーツール
-│   ├── telemetry.py       # session.id baggageをスパンに伝播させるヘルパー
 │   └── main.py            # CLIエントリポイント(固定クエリでの動作確認用)
 ├── evaluation/
 │   ├── test_cases.py      # 評価用テストクエリ(計算・気温・RAGを誘発する質問)
@@ -26,7 +25,7 @@ Amazon Bedrock AgentCore Evaluations(オンデマンド評価)の学習用リポ
 ├── terraform/
 │   └── main/               # KBソースS3・S3 Vectors・Knowledge Base・データソース(S3 backend)
 └── scripts/
-    └── otel_env.sh         # ADOT計装に必要な環境変数を設定するスクリプト
+    └── generate_env.sh     # terraform出力から.envファイルを生成するスクリプト
 ```
 
 ## セットアップ
@@ -65,7 +64,15 @@ cd ../..
 
 (`-auto-approve`を付けない場合は、確認プロンプトに`yes`と答える。)
 
-### 4. Knowledge Baseへのデータ取り込み(ingestion)
+### 4. .envファイルの生成
+
+```bash
+./scripts/generate_env.sh
+```
+
+`terraform output`から`KNOWLEDGE_BASE_ID`を取得し、`AWS_REGION`と合わせて`.env`に書き出す。インフラを再作成した場合は再実行する。
+
+### 5. Knowledge Baseへのデータ取り込み(ingestion)
 
 ```bash
 cd terraform/main
@@ -84,40 +91,20 @@ aws bedrock-agent get-ingestion-job \
 
 `status`が`COMPLETE`になるまで数回リトライする(`STARTING`→`IN_PROGRESS`→`COMPLETE`)。
 
-### 5. CloudWatch Transaction Searchの有効化(アカウントに一度だけ実施)
-
-```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-aws logs put-resource-policy --policy-name AgentCoreEvaluationsTransactionSearch \
-  --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"TransactionSearchXRayAccess\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"xray.amazonaws.com\"},\"Action\":\"logs:PutLogEvents\",\"Resource\":[\"arn:aws:logs:ap-northeast-1:${ACCOUNT_ID}:log-group:aws/spans:*\",\"arn:aws:logs:ap-northeast-1:${ACCOUNT_ID}:log-group:/aws/application-signals/data:*\"],\"Condition\":{\"ArnLike\":{\"aws:SourceArn\":\"arn:aws:xray:ap-northeast-1:${ACCOUNT_ID}:*\"},\"StringEquals\":{\"aws:SourceAccount\":\"${ACCOUNT_ID}\"}}}]}" \
-  --region ap-northeast-1
-
-aws xray update-trace-segment-destination --destination CloudWatchLogs --region ap-northeast-1
-
-aws xray update-indexing-rule --name "Default" \
-  --rule '{"Probabilistic": {"DesiredSamplingPercentage": 100}}' \
-  --region ap-northeast-1
-```
-
-反映まで数分〜十数分かかる場合がある。`aws xray get-trace-segment-destination --region ap-northeast-1`で`"Status": "ACTIVE"`になっていることを確認する。
-
 ## エージェントの実行方法
 
-`scripts/otel_env.sh`は、トレース送信先(X-Ray)・ログイベント送信先(自己管理エージェント用のCloudWatch Logsロググループ/ストリーム。ロググループはTerraformで管理、ログストリームは未作成なら作成する)など、ADOT計装に必要な環境変数一式を設定する。
+セットアップの手順4で生成した`.env`(`KNOWLEDGE_BASE_ID`・`AWS_REGION`)を`uv run --env-file`で読み込んで実行する。
 
 ```bash
-source scripts/otel_env.sh
-uv run opentelemetry-instrument python -m src.main
+uv run --env-file .env python -m src.main
 ```
 
 ## 評価の実行方法
 
-`evaluation/run_evaluation.py`は、`evaluation/test_cases.py`の各テストクエリについてエージェントを実行し、`aws/spans`ロググループ(スパン本体)と`scripts/otel_env.sh`が設定したロググループ(input/outputメッセージ等のログイベント)の両方をCloudWatch Logs Insightsで検索・結合してから、AgentCore Evaluationsの組み込みエバリュエーター13種に対して評価(`evaluate` API)を実行する。取り込み中のレコード欠落を避けるため、2回連続で件数が変化しなくなるまでポーリングしてから評価を行う。
+`evaluation/run_evaluation.py`は、`evaluation/test_cases.py`の各テストクエリについてエージェントを実行し、`strands-agents-evals`(`StrandsEvalsTelemetry`)でインメモリに収集したトレースを、AgentCore Evaluationsの組み込みエバリュエーター13種(`create_strands_evaluator`が内部で`evaluate` APIを呼ぶ)に対して評価する。CloudWatchへのトレース送信やポーリングは不要。
 
 ```bash
-source scripts/otel_env.sh
-uv run opentelemetry-instrument python -m evaluation.run_evaluation
+uv run --env-file .env python -m evaluation.run_evaluation
 ```
 
-正解データ(ground truth)は使用せず、13エバリュエーター × テストクエリ数ぶんの評価結果(スコア・ラベル・説明)が表示される。
+正解データ(ground truth)は使用せず、13エバリュエーター × テストクエリ数ぶんの評価結果(スコア・説明)が表示される。

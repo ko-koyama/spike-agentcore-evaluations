@@ -1,6 +1,7 @@
 # 全般
 .venv
 .worktrees/
+.env
 
 # Python
 __pycache__/

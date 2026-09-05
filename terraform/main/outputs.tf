@@ -10,7 +10,3 @@ output "data_source_id" {
 output "kb_source_bucket_name" {
   value = aws_s3_bucket.kb_source.bucket
 }
-
-output "events_log_group_name" {
-  value = aws_cloudwatch_log_group.events.name
-}
