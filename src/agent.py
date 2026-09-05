@@ -7,7 +7,7 @@ from strands_tools import python_repl, retrieve
 
 from src.tools.temperature import get_temperature
 
-MODEL_ID = "jp.anthropic.claude-sonnet-4-5-20250929-v1:0"
+MODEL_ID = "jp.anthropic.claude-sonnet-4-6"
 
 SYSTEM_PROMPT = (
     "retrieveはマクドナルドのバーガーメニューの栄養成分"
