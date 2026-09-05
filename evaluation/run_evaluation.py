@@ -49,7 +49,13 @@ def main() -> None:
         telemetry.in_memory_exporter.clear()
         response = agent(case.input)
         trajectory = list(telemetry.in_memory_exporter.get_finished_spans())
-        agent_outputs.append({"input": case.input, "output": str(response)})
+        agent_outputs.append(
+            {
+                "input": case.input,
+                "output": str(response),
+                "tool_calls": _extract_tool_calls(trajectory),
+            }
+        )
         return {"output": str(response), "trajectory": trajectory}
 
     cases = [Case(input=query) for query in TEST_CASES]
@@ -81,6 +87,40 @@ def main() -> None:
 
     _write_json(output_dir / "agent_output.json", agent_outputs)
     _write_json(output_dir / "evaluation_output.json", evaluation_outputs)
+
+
+def _extract_tool_calls(trajectory: list) -> list[dict]:
+    """SpanのイベントからツールNameと入出力を抽出する。"""
+    tool_calls = []
+    for span in trajectory:
+        if not span.name.startswith("execute_tool"):
+            continue
+        input_content = None
+        output_message = None
+        for event in span.events:
+            if event.name == "gen_ai.tool.message":
+                input_content = _parse_json(event.attributes.get("content"))
+            elif event.name == "gen_ai.choice":
+                output_message = _parse_json(event.attributes.get("message"))
+        tool_calls.append(
+            {
+                "name": span.attributes.get("gen_ai.tool.name"),
+                "status": span.attributes.get("gen_ai.tool.status"),
+                "input": input_content,
+                "output": output_message,
+            }
+        )
+    return tool_calls
+
+
+def _parse_json(raw: str | None) -> object:
+    """JSON文字列をパースする。失敗時は元の文字列をそのまま返す。"""
+    if raw is None:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return raw
 
 
 def _write_json(path: Path, data: object) -> None:
