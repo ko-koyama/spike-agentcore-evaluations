@@ -10,9 +10,8 @@ from src.tools.temperature import get_temperature
 MODEL_ID = "jp.anthropic.claude-sonnet-4-5-20250929-v1:0"
 
 SYSTEM_PROMPT = (
-    "あなたは計算・気温確認・マクドナルドのメニュー成分検索ができるアシスタントです。"
-    "計算にはpython_replを、気温にはget_temperatureを、"
-    "メニューの栄養成分に関する質問にはretrieveを使ってください。"
+    "retrieveはマクドナルドのバーガーメニューの栄養成分"
+    "(カロリー・たんぱく質・脂質・炭水化物)を検索するナレッジベースに接続されています。"
 )
 
 
