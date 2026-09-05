@@ -24,8 +24,7 @@ Amazon Bedrock AgentCore Evaluations(オンデマンド評価)の学習用リポ
 │   └── mcdonalds_menu.md  # マクドナルドメニューの栄養成分(Knowledge Baseのソースデータ)
 ├── terraform/
 │   └── main/               # KBソースS3・S3 Vectors・Knowledge Base・データソース(S3 backend)
-└── scripts/
-    └── generate_env.sh     # terraform出力から.envファイルを生成するスクリプト
+└── .env.example            # .envのテンプレート
 ```
 
 ## セットアップ
@@ -64,13 +63,14 @@ cd ../..
 
 (`-auto-approve`を付けない場合は、確認プロンプトに`yes`と答える。)
 
-### 4. .envファイルの生成
+### 4. .envファイルの作成
 
 ```bash
-./scripts/generate_env.sh
+cp .env.example .env
+terraform -chdir=terraform/main output -raw knowledge_base_id
 ```
 
-`terraform output`から`KNOWLEDGE_BASE_ID`を取得し、`AWS_REGION`と合わせて`.env`に書き出す。インフラを再作成した場合は再実行する。
+`.env`の`KNOWLEDGE_BASE_ID`に、上記コマンドの出力値を設定する。インフラを再作成した場合は値を更新する。
 
 ### 5. Knowledge Baseへのデータ取り込み(ingestion)
 
@@ -93,7 +93,7 @@ aws bedrock-agent get-ingestion-job \
 
 ## エージェントの実行方法
 
-セットアップの手順4で生成した`.env`(`KNOWLEDGE_BASE_ID`・`AWS_REGION`)を`uv run --env-file`で読み込んで実行する。
+セットアップの手順4で作成した`.env`(`KNOWLEDGE_BASE_ID`・`AWS_REGION`)を`uv run --env-file`で読み込んで実行する。
 
 ```bash
 uv run --env-file .env python -m src.main
