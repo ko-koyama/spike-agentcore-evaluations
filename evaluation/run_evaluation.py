@@ -7,14 +7,14 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from bedrock_agentcore.evaluation import create_strands_evaluator
+from strands_evals import Case, Experiment
+from strands_evals.telemetry import StrandsEvalsTelemetry
+
+from evaluation.test_cases import TEST_CASES
+from src.agent import build_agent
+
 os.environ.setdefault("BYPASS_TOOL_CONSENT", "true")
-
-from bedrock_agentcore.evaluation import create_strands_evaluator  # noqa: E402
-from strands_evals import Case, Experiment  # noqa: E402
-from strands_evals.telemetry import StrandsEvalsTelemetry  # noqa: E402
-
-from evaluation.test_cases import TEST_CASES  # noqa: E402
-from src.agent import build_agent  # noqa: E402
 
 REGION = os.environ.get("AWS_REGION", "ap-northeast-1")
 OUTPUT_ROOT = Path("outputs")
