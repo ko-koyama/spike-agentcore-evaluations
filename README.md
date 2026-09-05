@@ -17,7 +17,7 @@ Amazon Bedrock AgentCore Evaluations(オンデマンド評価)の学習用リポ
 │   ├── tools/
 │   │   └── temperature.py # 都道府県→気温を返すダミーツール
 │   ├── telemetry.py       # session.id baggageをスパンに伝播させるヘルパー
-│   └── main.py            # CLIエントリポイント(単発クエリ実行)
+│   └── main.py            # CLIエントリポイント(固定クエリでの動作確認用)
 ├── evaluation/
 │   ├── test_cases.py      # 評価用テストクエリ(計算・気温・RAGを誘発する質問)
 │   └── run_evaluation.py  # エージェント実行→トレース取得→オンデマンド評価→結果表示
@@ -108,7 +108,7 @@ aws xray update-indexing-rule --name "Default" \
 
 ```bash
 source scripts/otel_env.sh
-uv run opentelemetry-instrument python -m src.main "ビッグマックのカロリーを教えて"
+uv run opentelemetry-instrument python -m src.main
 ```
 
 ## 評価の実行方法
