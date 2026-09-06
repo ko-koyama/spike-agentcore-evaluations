@@ -1,11 +1,15 @@
-def greet(name: str) -> str:
-    stripped = name.strip()
-    if not stripped:
-        raise ValueError("name must not be empty")
-    if any(char.isdigit() for char in stripped):
-        raise ValueError("name must not contain digits")
-    return f"Hello, {stripped}!"
+# src/main.py
+"""CLIエントリポイント: 固定のプロンプトをエージェントに渡して応答を表示する。"""
+
+from src.agent import build_agent
+
+PROMPT = "ビッグマックのカロリーを教えて"
+
+
+def main() -> None:
+    agent = build_agent()
+    agent(PROMPT)
 
 
 if __name__ == "__main__":
-    print(greet("World"))
+    main()

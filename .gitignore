@@ -1,6 +1,8 @@
 # 全般
 .venv
 .worktrees/
+.env
+outputs/
 
 # Python
 __pycache__/
@@ -8,6 +10,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+repl_state/
 
 # Terraform
 **/.terraform/*
