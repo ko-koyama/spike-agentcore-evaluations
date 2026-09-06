@@ -1,4 +1,5 @@
 # terraform/main/knowledge_base.tf
+# マクドナルドメニューの検索用Knowledge Base
 resource "aws_bedrockagent_knowledge_base" "mcdonalds_menu" {
   name     = "${var.project_name}-mcdonalds-menu"
   role_arn = aws_iam_role.kb.arn
@@ -24,6 +25,7 @@ resource "aws_bedrockagent_knowledge_base" "mcdonalds_menu" {
   ]
 }
 
+# Knowledge BaseのデータソースとなるS3バケット
 resource "aws_bedrockagent_data_source" "mcdonalds_menu_s3" {
   knowledge_base_id = aws_bedrockagent_knowledge_base.mcdonalds_menu.id
   name              = "mcdonalds-menu-s3"

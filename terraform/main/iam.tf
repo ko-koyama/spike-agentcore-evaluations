@@ -19,6 +19,7 @@ resource "aws_iam_role" "kb" {
   })
 }
 
+# 埋め込みモデル呼び出し権限を付与するポリシー
 resource "aws_iam_role_policy" "kb_model_invocation" {
   name = "model-invocation"
   role = aws_iam_role.kb.id
@@ -33,6 +34,7 @@ resource "aws_iam_role_policy" "kb_model_invocation" {
   })
 }
 
+# ソースドキュメントバケットへの読み取り権限を付与するポリシー
 resource "aws_iam_role_policy" "kb_s3_source" {
   name = "s3-source-access"
   role = aws_iam_role.kb.id
@@ -47,6 +49,7 @@ resource "aws_iam_role_policy" "kb_s3_source" {
   })
 }
 
+# S3 Vectorsインデックスへのアクセス権限を付与するポリシー
 resource "aws_iam_role_policy" "kb_s3vectors" {
   name = "s3vectors-access"
   role = aws_iam_role.kb.id

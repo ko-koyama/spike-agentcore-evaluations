@@ -4,6 +4,7 @@ resource "aws_s3_bucket" "kb_source" {
   force_destroy = true
 }
 
+# kb_sourceバケットへのパブリックアクセスをブロック
 resource "aws_s3_bucket_public_access_block" "kb_source" {
   bucket                  = aws_s3_bucket.kb_source.id
   block_public_acls       = true
@@ -12,6 +13,7 @@ resource "aws_s3_bucket_public_access_block" "kb_source" {
   restrict_public_buckets = true
 }
 
+# マクドナルドメニューのソースドキュメントをアップロード
 resource "aws_s3_object" "mcdonalds_menu" {
   bucket = aws_s3_bucket.kb_source.id
   key    = "mcdonalds_menu.md"
