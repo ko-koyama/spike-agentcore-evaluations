@@ -1,5 +1,5 @@
 {
-  "name": "python-template",
+  "name": "spike-agentcore-evaluations",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
     "ghcr.io/devcontainers/features/python:1": {
